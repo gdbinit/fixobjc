@@ -1,0 +1,5 @@
+This is an attempt to improve the original fixobjc.idc script by Willem Jan Hengeveld.
+
+For now it's only compatible with Mach-O 32bits binaries for Mac OS X.
+
+fG!
