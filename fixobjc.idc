@@ -19,13 +19,16 @@
  * Web: http://www.xs4all.nl/~itsme/projects/ida/
  *
  * v0.1 - 28/08/2012
- *
  * ChangeLog:
  *  - Add a version number
  *  - Add xrefs to instance methods (I really hate to have to go backwards, too many clicks!)
  *  - Commented some of the code, start cleaning fixmes
  *  - Start adding configurable options
- *
+ *  - Rename methods as IDA does with [Class selector] format
+ *    This will work with binaries which IDA can correctly process their obj-c info
+ *  - Fix the cfstring segment (wasn't working due to wrong segment name)
+ *  - change comment type for message and class refs
+ *  
  */
 
 // configurable options - YOU CAN MESS AROUND HERE
@@ -35,8 +38,9 @@
 #define UNLOADED_FILE   1
 #include <idc.idc>
 
-#define YES 1
-#define NO  0
+#define YES   1
+#define NO    0
+#define DEBUG 0
 
 #define STRUCT_OBJC_METHOD_SIZE 12   // sizeof(struct objc_method)
 
@@ -54,7 +58,7 @@ static create_mthnames(ea0, ea1, name, type)
     auto ea;
     for (ea=ea0 ; ea<ea1 ; ea=ea+STRUCT_OBJC_METHOD_SIZE)
     {
-        MakeName(Dword(ea+8), name+"::"+type+String(Dword(ea)));
+        MakeNameEx(Dword(ea+8), "-["+name+" "+type+" "+String(Dword(ea))+"]", SN_NOCHECK);
     }
 }
 
@@ -90,7 +94,9 @@ static fix__objc_binary()
         if (GuessType(ea)=="__class_struct") 
         {
             name=String(Dword(ea+8)); // retrieve class name
-            Message("%08lx %s\n", ea, name);
+#if DEBUG            
+            Message("Processing class @ %08lx:%s\n", ea, name);
+#endif
             // just rename some fields of the class
             MakeName(ea, form("class_%s", name));               // MakeName will replace invalid chars with '_'
             MakeName(Dword(ea+0x18), form("ivars_%s", name));	// instance vars
@@ -100,10 +106,7 @@ static fix__objc_binary()
             struct objc_method_list {
                 struct objc_method_list *obsolete                        OBJC2_UNAVAILABLE;  // 0  
                 int method_count                                         OBJC2_UNAVAILABLE;  // 4
-                #ifdef __LP64__
-                int space                                                OBJC2_UNAVAILABLE;  // 8
-                #endif
-                struct objc_method method_list[1]                        OBJC2_UNAVAILABLE;  // 12
+                struct objc_method method_list[1]                        OBJC2_UNAVAILABLE;  // 8
             }                                                            OBJC2_UNAVAILABLE;
             struct objc_method {
                 SEL method_name                                          OBJC2_UNAVAILABLE;
@@ -114,20 +117,23 @@ static fix__objc_binary()
 
             auto methodLists_ptr, method_count, method_list_start, method_list_end, x;
             
-            methodLists_ptr = Dword(ea+0x1c);
-            method_count = Dword(methodLists_ptr+4);
+            methodLists_ptr   = Dword(ea+0x1c);
+            method_count      = Dword(methodLists_ptr+4);
             method_list_start = methodLists_ptr+8;
-            method_list_end = method_list_start + (STRUCT_OBJC_METHOD_SIZE*method_count);
+            method_list_end   = method_list_start + (STRUCT_OBJC_METHOD_SIZE*method_count);
             
             // name the unnamed functions with method names plus class
             for (x = method_list_start ; x < method_list_end ; x = x + STRUCT_OBJC_METHOD_SIZE)
             {
+#if DEBUG
+                Message("Processing method %s from class %s @ %x\n", String(Dword(x)), name, x);
+#endif
 #if TYPE_INFORMATION
-                type = String(Dword(x+4));
+                type = " "+String(Dword(x+4));
 #else
                 type = "";
 #endif
-                MakeNameEx(Dword(x+8), name+"::"+type+"::"+String(Dword(x)), SN_NOCHECK);
+                MakeNameEx(Dword(x+8), "-["+name+" "+String(Dword(x))+type+"]", SN_NOCHECK);
             }
 	    // todo: create meta_class_methods ( Dword(ea+0x24)
         }
@@ -146,7 +152,7 @@ static fix__objc_binary()
             }
             if (Dword(ea+0x1c)) {	// methods
                 MakeName(Dword(ea+0x1c), form("metamethods_%s", name));
-                create_mthnames(Dword(ea+0x1c)+8, Dword(ea+0x1c)+8+12*Dword(Dword(ea+0x1c)+4), name, "static_");
+                create_mthnames(Dword(ea+0x1c)+8, Dword(ea+0x1c)+8+12*Dword(Dword(ea+0x1c)+4), name, "(static)");
             }
 	    // todo: meta_class_methods ( Dword(ea+0x24)
         }
@@ -184,7 +190,7 @@ static fix__objc_binary()
             MakeName(ea, form("category_%s", name));
             if (Dword(ea+0x8)) {	// methods -> seg __cat_inst_meth
                 MakeName(Dword(ea+0x8), form("catmths_%s", name));
-                create_mthnames(Dword(ea+0x8)+8, Dword(ea+0x8)+8+12*Dword(Dword(ea+0x8)+4), name, "cat_");
+                create_mthnames(Dword(ea+0x8)+8, Dword(ea+0x8)+8+12*Dword(Dword(ea+0x8)+4), name, "(cat)");
             }
 	    // todo: class methods -> __cat_cls_meth
         }
@@ -200,20 +206,21 @@ static fix__objc_binary()
     }
     
     Message("[INFO] Processing __cfstring segment\n");
-    segea=SegByBase(SegByName("__cfString"));
+    segea=SegByBase(SegByName("__cfstring"));
     for (ea= SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
-        if (GuessType(ea)=="__cfString_struct") {
+        if (GuessType(ea)=="__CFString") {
             if (!MakeName(ea, "cfs_"+Name(Dword(ea+8))))
             {
                 i=0;
                 while (!MakeName(ea, form("cfs_%s_%d",Name(Dword(ea+8)),i)))
                     i++;
             }
-            for (rea=DfirstB(ea) ; rea!=BADADDR ; rea=DnextB(ea,rea))
-            {
-                MakeComm(rea, String(Dword(ea+8)));
-            }
+            // no more need for this since IDA already comments with the string contents
+//             for (rea=DfirstB(ea) ; rea!=BADADDR ; rea=DnextB(ea,rea))
+//             {
+//                 MakeComm(rea, String(Dword(ea+8)));
+//             }
         }
     }
     
@@ -229,7 +236,7 @@ static fix__objc_binary()
         }
         for (rea=DfirstB(ea) ; rea!=BADADDR ; rea=DnextB(ea,rea))
         {
-            MakeComm(rea, "message "+String(Dword(ea)));
+            MakeComm(rea, "message: \""+String(Dword(ea))+"\"");
         }
     }
     
@@ -245,7 +252,7 @@ static fix__objc_binary()
         }
         for (rea=DfirstB(ea) ; rea!=BADADDR ; rea=DnextB(ea,rea))
         {
-            MakeComm(rea, "class "+String(Dword(ea)));
+            MakeComm(rea, "class: \""+String(Dword(ea))+"\"");
         }
     }
 
@@ -314,6 +321,7 @@ static fix__objc_binary()
     Message("[INFO] Processing __inst_meth segment\n");
     segea=SegByBase(SegByName("__inst_meth"));
     add_inst_methods_xrefs(segea);
+    Message("[INFO] Everything finished!\n");
 }
 
 /*
