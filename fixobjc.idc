@@ -404,21 +404,14 @@ static add_catinst_methods_xrefs(segea)
         }
     
         // start looking up who's referencing the method
-        // the first entry
-        xref = DfirstB(msg_ref);
-        if (xref != BADADDR)
+        // and add the xref back to the method
+        for (xref = DfirstB(msg_ref); xref != BADADDR; xref = DnextB(msg_ref, xref))
         {
-            // add the xref back to the function in question
-            add_dref(xref, function, dr_O);
-        }
-        // next entries if available
-        while (xref != BADADDR)
-        {
-            xref = DnextB(msg_ref, xref);
             add_dref(xref, function, dr_O);
         }
     }
 }
+
 /*
  * function that will add xrefs to instance methods so we can easily find who's calling each method
  */
@@ -426,8 +419,8 @@ static add_inst_methods_xrefs(segea)
 {
     auto cstring, msg_ref, xref, function, ea;
     // start process valid code/data until the end of this segment
-    // XXX: this might need some optimization, for now it just bruteforces
-    //      potential problem is padding that exists in some targets and others not
+    // NOTE: we are bruteforcing by using NextHead instead of parsing the structure
+    //       the speed advantage of parsing the structure appears to be very small so let's keep it this way
     for (ea=SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
 //         Message("Processing %x\n", ea);
@@ -462,17 +455,9 @@ static add_inst_methods_xrefs(segea)
         }
     
         // start looking up who's referencing the method
-        // the first entry
-        xref = DfirstB(msg_ref);
-        if (xref != BADADDR)
+        // and add the xref back to the method
+        for (xref = DfirstB(msg_ref); xref != BADADDR; xref = DnextB(msg_ref, xref))
         {
-            // add the xref back to the function in question
-            add_dref(xref, function, dr_O);
-        }
-        // next entries if available
-        while (xref != BADADDR)
-        {
-            xref = DnextB(msg_ref, xref);
             add_dref(xref, function, dr_O);
         }
     }
