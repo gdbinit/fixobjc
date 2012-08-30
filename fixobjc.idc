@@ -145,16 +145,19 @@ static fix__objc_binary()
     segea=SegByBase(SegByName("__meta_class"));
     for (ea= SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
-        if (GuessType(ea)=="__class_struct") {
+        if (GuessType(ea)=="__class_struct") 
+        {
             name=String(Dword(ea+8));
 #if DEBUG            
             Message("Processing class @%08lx:%s\n", ea, name);
 #endif            
             MakeName(ea, form("metaclass_%s", name));
-            if (Dword(ea+0x18)) {	// instance vars
+            if (Dword(ea+0x18)) 
+            {	// instance vars
                 MakeName(Dword(ea+0x18), form("metaivars_%s", name));
             }
-            if (Dword(ea+0x1c)) {	// methods
+            if (Dword(ea+0x1c)) 
+            {	// methods
                 MakeName(Dword(ea+0x1c), form("metamethods_%s", name));
 //                 create_mthnames(Dword(ea+0x1c)+8, Dword(ea+0x1c)+8+12*Dword(Dword(ea+0x1c)+4), name, "(static)");
                 // name the class methods
@@ -173,17 +176,22 @@ static fix__objc_binary()
     segea=SegByBase(SegByName("__protocol"));
     for (ea= SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
-        if (GuessType(ea)=="__protocol_struct") {
+        if (GuessType(ea)=="__protocol_struct") 
+        {
             name=String(Dword(ea+4));
             Message("%08lx %s\n", ea, name);
-            if (MakeName(ea, form("protocol_%s", name))) {
-                if (Dword(ea+0xc)) {	// instance methods
+            if (MakeName(ea, form("protocol_%s", name))) 
+            {
+                if (Dword(ea+0xc)) 
+                {	// instance methods
                     MakeName(Dword(ea+0xc), form("protomth_%s", name));
                 }
             }
 	    // todo: better handling of name collisions
-            else if (MakeName(ea, form("protocol_%s_1", name))) {
-                if (Dword(ea+0xc)) {	// instance methods
+            else if (MakeName(ea, form("protocol_%s_1", name))) 
+            {
+                if (Dword(ea+0xc)) 
+                {	// instance methods
                     MakeName(Dword(ea+0xc), form("protomth_%s_1", name));
                 }
             }
@@ -195,11 +203,13 @@ static fix__objc_binary()
     segea=SegByBase(SegByName("__category"));
     for (ea= SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
-        if (GuessType(ea)=="__category_struct") {
+        if (GuessType(ea)=="__category_struct") 
+        {
             name=String(Dword(ea+4))+"_"+String(Dword(ea));	// class _ category
             Message("%08lx %s\n", ea, name);
             MakeName(ea, form("category_%s", name));
-            if (Dword(ea+0x8)) {	// methods -> seg __cat_inst_meth
+            if (Dword(ea+0x8)) 
+            {	// methods -> seg __cat_inst_meth
                 MakeName(Dword(ea+0x8), form("catmths_%s", name));
                 create_mthnames(Dword(ea+0x8)+8, Dword(ea+0x8)+8+12*Dword(Dword(ea+0x8)+4), name, "(cat)");
             }
@@ -211,7 +221,8 @@ static fix__objc_binary()
     segea=SegByBase(SegByName("__module_info"));
     for (ea= SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
-        if (GuessType(ea)=="__module_info_struct") {
+        if (GuessType(ea)=="__module_info_struct") 
+        {
             MakeName(Dword(ea+0xC), form("symtab_%X", Dword(ea+0xC)));
         }
     }
@@ -220,7 +231,8 @@ static fix__objc_binary()
     segea=SegByBase(SegByName("__cfstring"));
     for (ea= SegStart(segea) ; ea!=BADADDR ; ea=NextHead(ea,SegEnd(segea)))
     {
-        if (GuessType(ea)=="__CFString") {
+        if (GuessType(ea)=="__CFString") 
+        {
             if (!MakeName(ea, "cfs_"+Name(Dword(ea+8))))
             {
                 i=0;
@@ -272,13 +284,16 @@ static fix__objc_binary()
     for (ea= SegStart(segea) ; ea<SegEnd(segea) ; )
     {
         n=Dword(ea);
-        if (n==0) {
+        if (n==0) 
+        {
             ea=ea+4;
         }
-        else {
+        else
+        {
             id=AddStruc(-1, Name(ea)+"_struct");
             ea=ea+4;
-            while (n--) {
+            while (n--) 
+            {
                 type=String(Dword(ea+4));
                 ofs=Dword(ea+8);
                 name=String(Dword(ea));
@@ -292,21 +307,26 @@ static fix__objc_binary()
                 else if (type=="B") { size=4; }
                 else if (type=="f") { size=4; }
                 else if (type=="d") { size=8; }
-                else if (substr(type,0,1)=="[") {
-                    if (strstr(type,"@")!=-1) {
+                else if (substr(type,0,1)=="[") 
+                {
+                    if (strstr(type,"@")!=-1) 
+                    {
                         size=4*atol(substr(type,1,-1));
                     }
-                    else {
+                    else 
+                    {
                         Message("%08lx: unrecognized type: %s\n", ea, type);
                         size=4*atol(substr(type,1,-1));
                         if (size==0)
                             size=4;
                     }
                 }
-                else if (substr(type,0,1)=="@") {
+                else if (substr(type,0,1)=="@") 
+                {
                     size=4;
                 }
-                else {
+                else 
+                {
                     Message("%08lx: unrecognized type: %s\n", ea, type);
                     size=4;
                 }
