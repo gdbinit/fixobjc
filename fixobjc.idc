@@ -29,6 +29,7 @@
  *  - Fix the cfstring segment (wasn't working due to wrong segment name)
  *  - change comment type for message and class refs
  *  - Correctly rename class methods +[] format
+ *  - Add xrefs to class methods
  *
  */
 
@@ -331,6 +332,11 @@ static fix__objc_binary()
     Message("[INFO] Processing __inst_meth segment\n");
     segea=SegByBase(SegByName("__inst_meth"));
     add_inst_methods_xrefs(segea);
+    
+    Message("[INFO] Processing __cls_meth segment\n");
+    segea=SegByBase(SegByName("__cls_meth"));
+    add_inst_methods_xrefs(segea);
+
     Message("[INFO] Everything finished!\n");
 }
 
