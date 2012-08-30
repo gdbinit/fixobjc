@@ -28,7 +28,8 @@
  *    This will work with binaries which IDA can correctly process their obj-c info
  *  - Fix the cfstring segment (wasn't working due to wrong segment name)
  *  - change comment type for message and class refs
- *  
+ *  - Correctly rename class methods +[] format
+ *
  */
 
 // configurable options - YOU CAN MESS AROUND HERE
@@ -145,16 +146,25 @@ static fix__objc_binary()
     {
         if (GuessType(ea)=="__class_struct") {
             name=String(Dword(ea+8));
-            Message("%08lx %s\n", ea, name);
+#if DEBUG            
+            Message("Processing class @%08lx:%s\n", ea, name);
+#endif            
             MakeName(ea, form("metaclass_%s", name));
             if (Dword(ea+0x18)) {	// instance vars
                 MakeName(Dword(ea+0x18), form("metaivars_%s", name));
             }
             if (Dword(ea+0x1c)) {	// methods
                 MakeName(Dword(ea+0x1c), form("metamethods_%s", name));
-                create_mthnames(Dword(ea+0x1c)+8, Dword(ea+0x1c)+8+12*Dword(Dword(ea+0x1c)+4), name, "(static)");
+//                 create_mthnames(Dword(ea+0x1c)+8, Dword(ea+0x1c)+8+12*Dword(Dword(ea+0x1c)+4), name, "(static)");
+                // name the class methods
+                for (x = Dword(ea+0x1c)+8 ; x < Dword(ea+0x1c)+8+12*Dword(Dword(ea+0x1c)+4) ; x = x + STRUCT_OBJC_METHOD_SIZE)
+                {
+#if DEBUG
+                    Message("Processing class method %s from class %s @ %x\n", String(Dword(x)), name, x);
+#endif
+                    MakeNameEx(Dword(ea+8), "+["+name+" "+String(Dword(ea))+"]", SN_NOCHECK);
+                }
             }
-	    // todo: meta_class_methods ( Dword(ea+0x24)
         }
     }
     
